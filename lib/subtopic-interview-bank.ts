@@ -106,12 +106,23 @@ for (const module of uniqueModules.values()) {
 
     const aptitude = aptitudeFrames[v - 1].replaceAll('{topic}', topic).replaceAll('{n}', String(n)).replaceAll('{m}', String(m)).replaceAll('{r}', String(r));
     let answer = '';
-    if (v % 5 === 0) answer = String(Math.round(n * r / 100));
-    else if (v % 5 === 1) answer = String(Math.round(n * (100 - r) / 100));
-    else if (v % 5 === 2) answer = String(n * r);
-    else if (v % 5 === 3) answer = `${Math.round(((m - n) / n) * 100)}%`;
-    else answer = `${Math.round(((n - r) / n) * 100)}%`;
-    const options = [answer, String(n), String(m), String(r)];
+    if (v === 1) answer = String(Math.round(n * (100 - r) / 100));
+    else if (v === 2) answer = String(Math.round(n * (100 - r) / 100));
+    else if (v === 3) answer = String(n * r);
+    else if (v === 4) answer = `${Math.round(((m - n) / n) * 100)}%`;
+    else if (v === 5) answer = `${Math.round(((n - r) / n) * 100)}%`;
+    else if (v === 6) answer = `${(n + m) / 60} hours`;
+    else if (v === 7) answer = String(Math.round(n * (100 - r) / 100));
+    else if (v === 8) answer = String(Math.round((n / r) * m));
+    else if (v === 9) answer = String(Math.round((n * r) / (r + m)));
+    else if (v === 10) answer = String(m - n);
+    else if (v === 11) answer = `${Math.round((n - r) / n * 100)}%`;
+    else if (v === 12) answer = `${Math.round(r / n * 100)}%`;
+    else if (v === 13) answer = String(n - r);
+    else if (v === 14) answer = `${(n * r) / 60} hours`;
+    else answer = String(Math.round(n * r / 100));
+    const distractors = [String(n), String(m), String(r)];
+    const options = Array.from(new Set([answer, ...distractors])).slice(0, 4);
     generated.push({ id: `sub-apt-${sequence++}`, type: 'aptitude', topic, difficulty: level, question: `${aptitude} Variant ${v}`, options, answer, explanation: `Use the appropriate percentage, rate, ratio or arithmetic relationship and verify the units.` });
   }
 }
