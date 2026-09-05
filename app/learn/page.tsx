@@ -1,4 +1,47 @@
 'use client';
-import { useEffect, useState } from 'react';
-const topics=['Data Structures & Algorithms','JavaScript & TypeScript','React & Next.js','Java / OOP','Python','SQL & PostgreSQL','Operating Systems','Computer Networks','System Design','Git & GitHub'];
-export default function Learn(){const [scores,setScores]=useState<Record<string,number>>({});const [msg,setMsg]=useState('');useEffect(()=>{fetch('/api/progress').then(r=>r.ok?r.json():[]).then((d)=>{const m:Record<string,number>={};d.forEach((x:any)=>m[x.topic]=x.score);setScores(m)})},[]);async function save(topic:string,score:number){setScores(s=>({...s,[topic]:score}));const r=await fetch('/api/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,score})});setMsg(r.ok?'Progress saved ✓':'Please sign in first.')}return <main className="container"><nav className="nav"><b className="brand">INTERVIEW</b><div className="navlinks"><a href="/dashboard">Dashboard</a><a className="btn" href="/practice">Practice</a></div></nav><div className="topline" style={{marginTop:35}}><div><div className="eyebrow">Learning academy</div><h1 className="title">Build job-ready fundamentals</h1><p className="muted">Choose a topic, study it, then record your confidence score. Your dashboard uses this to calculate readiness.</p></div></div><div className="grid">{topics.map(topic=><div className="card" key={topic}><span className="pill">TECHNICAL</span><h3>{topic}</h3><p className="muted">Study concepts, solve examples and explain the topic aloud.</p><div style={{display:'flex',justifyContent:'space-between',marginTop:18}}><b>{scores[topic]??0}%</b><select value={scores[topic]??0} onChange={e=>save(topic,Number(e.target.value))}><option value="0">Not started</option><option value="25">25% — Started</option><option value="50">50% — Practicing</option><option value="75">75% — Confident</option><option value="100">100% — Interview ready</option></select></div><div className="progress"><span style={{width:`${scores[topic]??0}%`}}/></div></div>)}</div>{msg&&<div className="toast success">{msg}</div>}</main>}
+import { useEffect, useMemo, useState } from 'react';
+import { COURSES } from '@/lib/courses';
+
+type Progress = { moduleId: string; completed: boolean; examScore: number; examPassed: boolean };
+
+export default function Learn() {
+  const [department, setDepartment] = useState('CSE');
+  const [progress, setProgress] = useState<Progress[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [code, setCode] = useState('');
+  const [msg, setMsg] = useState('');
+  const course = useMemo(() => COURSES.find(c => c.department === department) || COURSES[0], [department]);
+  const module = course.modules[selected];
+
+  useEffect(() => {
+    setSelected(0); setCode(''); setMsg('');
+    fetch(`/api/modules?department=${encodeURIComponent(department)}`).then(r => r.ok ? r.json() : null).then(d => setProgress(d?.progress || []));
+  }, [department]);
+
+  function status(id: string) { return progress.find(p => p.moduleId === id); }
+  const completed = course.modules.filter(m => status(m.id)?.completed && status(m.id)?.examScore === 100).length;
+  const percent = Math.round(completed / course.modules.length * 100);
+
+  async function submitExam() {
+    const text = code.trim();
+    if (text.length < 30) { setMsg('Write at least 30 characters of practical code before submitting.'); return; }
+    const lower = text.toLowerCase();
+    const keywordHits = module.keywords.filter(k => lower.includes(k.replace(/[^a-z0-9]/g, '')) || lower.includes(k));
+    const score = keywordHits.length >= 1 && text.length >= 80 ? 100 : 70;
+    const r = await fetch('/api/modules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ department, moduleId: module.id, score, completed: score === 100 }) });
+    const d = await r.json();
+    if (!r.ok) { setMsg(d.error || 'Unable to save exam.'); return; }
+    setProgress(p => [...p.filter(x => x.moduleId !== module.id), d]);
+    setMsg(score === 100 ? 'Practical passed with 100%! Module completed ✓' : 'Practical needs improvement. Add a more complete solution and submit again.');
+  }
+
+  return <main className="container">
+    <nav className="nav"><b className="brand">INTERVIEW</b><div className="navlinks"><a href="/dashboard">Dashboard</a><a className="btn secondary" href="/notes">My Notes</a><a className="btn" href="/certificates">Certificates</a></div></nav>
+    <div className="topline" style={{marginTop:35}}><div><div className="eyebrow">Learning academy</div><h1 className="title">Learn by department</h1><p className="muted">Every department gets a structured course, modules, lessons and a practical coding exam.</p></div><div><label className="muted">Department</label><select value={department} onChange={e=>setDepartment(e.target.value)} style={{display:'block',padding:12,border:'1px solid #ccd3dd',borderRadius:10,marginTop:6}}>{COURSES.map(c=><option key={c.department} value={c.department}>{c.department} — {c.title}</option>)}</select></div></div>
+    <div className="card" style={{marginBottom:18}}><b>{course.title}</b><p className="muted">{course.description}</p><div style={{display:'flex',justifyContent:'space-between'}}><span>Course completion</span><b>{percent}%</b></div><div className="progress"><span style={{width:`${percent}%`}}/></div>{percent===100&&<div className="notice" style={{marginTop:12}}>🎓 All modules are complete with 100% practical scores. <a href="/certificates"><b>Generate your certificate →</b></a></div>}</div>
+    <div className="grid" style={{gridTemplateColumns:'minmax(220px, .8fr) minmax(0, 1.7fr)'}}>
+      <div className="card"><h2>Modules</h2>{course.modules.map((m,i)=>{const p=status(m.id);return <button key={m.id} onClick={()=>{setSelected(i);setCode('');setMsg('')}} style={{display:'block',width:'100%',textAlign:'left',padding:14,marginTop:8,border:'1px solid #d9dee7',borderRadius:10,background:i===selected?'#f2f5f9':'white',cursor:'pointer'}}><b>{i+1}. {m.title}</b><br/><span className="muted">{p?.completed?'✓ Complete':p?.examPassed?`Exam ${p.examScore}%`:'Not completed'}</span></button>})}</div>
+      <div className="card"><span className="pill">MODULE {selected+1}</span><h2>{module.title}</h2><h3>Lesson</h3><p className="muted">{module.lesson}</p><div className="notice"><b>Practical coding exam</b><p>{module.practical}</p><p className="muted">Write your solution below. Submit a complete program to earn 100% and unlock the module.</p></div><textarea value={code} onChange={e=>setCode(e.target.value)} placeholder="Write your code here…" style={{width:'100%',minHeight:230,padding:15,border:'1px solid #ccd3dd',borderRadius:12,fontFamily:'monospace'}}/><div className="actions" style={{marginTop:12}}><button className="btn" onClick={submitExam}>Submit Practical Exam</button>{status(module.id)&&<span className="pill">Best: {status(module.id)?.examScore}%</span>}</div>{msg&&<div className="toast">{msg}</div>}</div>
+    </div>
+  </main>;
+}
