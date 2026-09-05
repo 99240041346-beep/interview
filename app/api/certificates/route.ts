@@ -16,16 +16,14 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await req.json();
   const department = typeof body.department === 'string' ? body.department : 'CSE';
-  const program = ENGINEERING_PROGRAM_MAP.get(department);
-  if (!program) return NextResponse.json({ error: 'Unknown engineering program.' }, { status: 400 });
-  const trackId = typeof body.trackId === 'string' ? body.trackId : program.tracks[0]?.id;
-  const selected = program.tracks.find(t => t.id === trackId) || program.tracks[0];
-  if (!selected) return NextResponse.json({ error: 'No learning track is configured for this program.' }, { status: 400 });
+  const program = ENGINEERING_PROGRAM_MAP.get(department) || ENGINEERING_PROGRAM_MAP.get('CSE')!;
+  const courseId = typeof body.courseId === 'string' ? body.courseId : '';
+  const track = program.tracks.find(t => t.id === courseId) || program.tracks[0];
   const progress = await db.moduleProgress.findMany({ where: { userId, department: program.code } });
-  const complete = selected.modules.every(m => progress.some(p => p.moduleId === m.id && p.completed && p.examScore === 100));
-  if (!complete) return NextResponse.json({ error: 'Complete every module and score 100% in every practical assessment before requesting the certificate.' }, { status: 400 });
-  const existing = await db.certificate.findFirst({ where: { userId, department: program.code, course: selected.title } });
+  const complete = track.modules.every(m => progress.some(p => p.moduleId === m.id && p.completed && p.examScore === 100));
+  if (!complete) return NextResponse.json({ error: 'Complete every module and pass every practical assessment at 100% before requesting the certificate.' }, { status: 400 });
+  const existing = await db.certificate.findFirst({ where: { userId, department: program.code, course: track.title } });
   if (existing) return NextResponse.json(existing);
-  const certificateNo = `INT-${program.code}-${Date.now().toString(36).toUpperCase()}`;
-  return NextResponse.json(await db.certificate.create({ data: { userId, department: program.code, course: selected.title, certificateNo } }));
+  const certificateNo = `INT-${program.code}-${track.id.toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+  return NextResponse.json(await db.certificate.create({ data: { userId, department: program.code, course: track.title, certificateNo } }));
 }
