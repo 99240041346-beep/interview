@@ -35,7 +35,7 @@ const base: Array<[string,string,string,string[]]> = [
 ['AI/ML Engineer','Machine Learning','How would you detect data leakage before deploying a model?',['Give a feature example.','Why can leakage make validation misleading?']],
 ['AI/ML Engineer','MLOps','Design a pipeline for retraining a model when fresh labeled data arrives.',['How would you version data and models?','What would trigger rollback?']],
 ['AI/ML Engineer','NLP','How would you evaluate a customer-support classifier when some classes are rare?',['Why can accuracy be misleading?','Which metrics would you report?']],
-['AI/ML Engineer','Production','A deployed model's accuracy gradually declines. What possible causes would you investigate?',['What is data drift?','How would monitoring detect it?']],
+['AI/ML Engineer','Production','A deployed model’s accuracy gradually declines. What possible causes would you investigate?',['What is data drift?','How would monitoring detect it?']],
 ['DevOps Engineer','DevOps','A deployment succeeds but the application returns 500 errors. What is your incident workflow?',['What logs and health checks matter?','When would you roll back?']],
 ['DevOps Engineer','Cloud','How would you design a highly available web application across multiple availability zones?',['What happens if one zone fails?','Where would state live?']],
 ['DevOps Engineer','CI/CD','What quality gates would you put before production deployment?',['Which tests should block release?','How would you handle emergency fixes?']],
