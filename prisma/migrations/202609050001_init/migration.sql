@@ -1,0 +1,5 @@
+CREATE TABLE "User" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "email" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "targetRole" TEXT NOT NULL DEFAULT 'Software Developer', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "User_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE TABLE "LearningProgress" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "topic" TEXT NOT NULL, "score" INTEGER NOT NULL DEFAULT 0, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "LearningProgress_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "LearningProgress_userId_topic_key" ON "LearningProgress"("userId", "topic");
+ALTER TABLE "LearningProgress" ADD CONSTRAINT "LearningProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
