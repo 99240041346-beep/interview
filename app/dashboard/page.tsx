@@ -1,35 +1,6 @@
-import { db } from '@/lib/db';
+'use client';
+import { useEffect, useState } from 'react';
 
-export const dynamic = 'force-dynamic';
-
-export default async function Dashboard() {
-  const users = await db.user.count();
-
-  return (
-    <main className="container">
-      <nav className="nav">
-        <div className="brand">INTERVIEW</div>
-        <a href="/">Home</a>
-      </nav>
-      <section className="hero" style={{ padding: '55px 10px' }}>
-        <h1>Student Dashboard</h1>
-        <p>Your preparation workspace is ready.</p>
-      </section>
-      <div className="grid">
-        <div className="card stat">
-          <span>Students</span>
-          <strong>{users}</strong>
-          <p className="muted">Registered accounts</p>
-        </div>
-        <div className="card">
-          <h2>Learning</h2>
-          <p className="muted">Technical topics and progress tracking.</p>
-        </div>
-        <div className="card">
-          <h2>Practice</h2>
-          <p className="muted">Coding, aptitude and mock interviews.</p>
-        </div>
-      </div>
-    </main>
-  );
-}
+type Data={user:{name:string;email:string;targetRole:string};stats:{learning:number;practice:number;interview:number;resume:number;readiness:number};progress:{topic:string;score:number}[]};
+const links=[['Overview','/dashboard'],['Learning','/learn'],['Practice','/practice'],['Mock Interview','/mock-interview'],['Resume Analyzer','/resume'],['Placement Readiness','/placement']];
+export default function Dashboard(){const [data,setData]=useState<Data|null>(null);const [loading,setLoading]=useState(true);useEffect(()=>{fetch('/api/dashboard').then(r=>r.ok?r.json():null).then(setData).finally(()=>setLoading(false))},[]);async function logout(){await fetch('/api/auth/logout',{method:'POST'});location.href='/'}if(loading)return <div className="empty">Loading your workspace…</div>;if(!data)return <div className="container card"><h2>Session required</h2><p className="muted">Create an account or sign in to use your student dashboard.</p><a className="btn" href="/register">Get started</a></div>;return <div className="dashboard"><aside className="sidebar"><div className="side-title">INTERVIEW</div>{links.map(([label,url])=><a key={url} className="side-link active" href={url}>{label}</a>)}<button className="side-link" onClick={logout}>Sign out</button></aside><main className="main"><div className="topline"><div><div className="eyebrow">Student workspace</div><h1 className="title">Welcome, {data.user.name.split(' ')[0]} 👋</h1><p className="muted">Target role: <b>{data.user.targetRole}</b></p></div><a className="btn" href="/mock-interview">Start interview</a></div><div className="grid four"><div className="card stat"><span className="muted">Placement readiness</span><strong>{data.stats.readiness}%</strong><div className="progress"><span style={{width:`${data.stats.readiness}%`}}/></div></div><div className="card stat"><span className="muted">Learning</span><strong>{data.stats.learning}%</strong><p className="muted">Technical progress</p></div><div className="card stat"><span className="muted">Practice</span><strong>{data.stats.practice}%</strong><p className="muted">Coding & aptitude</p></div><div className="card stat"><span className="muted">Resume</span><strong>{data.stats.resume}%</strong><p className="muted">Latest resume score</p></div></div><h2 style={{marginTop:32}}>Your preparation plan</h2><div className="grid"><a className="card feature" href="/learn"><span className="pill">LEARN</span><h3>Build technical skills</h3><p>Follow JavaScript, Java, Python, SQL, DSA, web and CS fundamentals with measurable progress.</p></a><a className="card feature" href="/practice"><span className="pill">PRACTICE</span><h3>Practice under pressure</h3><p>Attempt coding, aptitude and technical questions and save every score to your profile.</p></a><a className="card feature" href="/mock-interview"><span className="pill">AI + VOICE</span><h3>Mock interview</h3><p>Answer role-based questions with your microphone or text and receive instant structured feedback.</p></a></div><div className="card" style={{marginTop:18}}><div className="topline"><div><h2>Topic progress</h2><p className="muted">Keep every topic above 70% before placement season.</p></div><a className="btn secondary" href="/learn">Continue learning</a></div>{data.progress.length?data.progress.map(p=><div key={p.topic} style={{margin:'15px 0'}}><div style={{display:'flex',justifyContent:'space-between'}}><b>{p.topic}</b><span>{p.score}%</span></div><div className="progress"><span style={{width:`${p.score}%`}}/></div></div>):<div className="empty">No topics started yet. Start learning to create your progress profile.</div>}</div></main></div>}
