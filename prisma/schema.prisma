@@ -31,7 +31,6 @@ model LearningProgress {
   score     Int      @default(0)
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([userId, topic])
 }
 
@@ -44,7 +43,6 @@ model PracticeAttempt {
   total     Int      @default(10)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId, type])
 }
 
@@ -58,7 +56,6 @@ model MockInterview {
   transcript  String   @default("")
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId, createdAt])
 }
 
@@ -71,7 +68,6 @@ model Resume {
   feedback    String   @default("")
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId, createdAt])
 }
 
@@ -83,7 +79,6 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId, updatedAt])
 }
 
@@ -98,19 +93,22 @@ model ModuleProgress {
   examPassed  Boolean  @default(false)
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([userId, moduleId])
   @@index([userId, department, course])
 }
 
 model Certificate {
-  id          String   @id @default(cuid())
-  userId      String
-  department  String
-  course      String
-  certificateNo String @unique
-  issuedAt    DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id            String   @id @default(cuid())
+  userId        String
+  department    String
+  course        String
+  certificateNo String   @unique
+  issuedAt      DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, course])
+}
+
+model SystemMarker {
+  key       String   @id
+  createdAt DateTime @default(now())
 }
