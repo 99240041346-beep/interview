@@ -1,20 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionUserId } from '@/lib/auth';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 
-const skills = ['javascript','typescript','react','next.js','node.js','python','java','sql','postgresql','git','docker','aws','html','css','api','data structures','algorithms'];
-
-export async function POST(req: Request) {
-  const userId = await getSessionUserId();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { fileName, text } = await req.json();
-  if (typeof fileName !== 'string' || typeof text !== 'string' || text.trim().length < 40) return NextResponse.json({ error: 'Add resume text (at least 40 characters) for analysis.' }, { status: 400 });
-  const lower = text.toLowerCase();
-  const found = skills.filter(skill => lower.includes(skill));
-  const sections = ['experience','education','project','skills','summary','contact'].filter(s => lower.includes(s));
-  const score = Math.min(100, Math.round(found.length / skills.length * 55 + sections.length / 6 * 35 + (text.length > 900 ? 10 : 0)));
-  const missing = ['summary','education','projects','skills','experience'].filter(s => !lower.includes(s));
-  const feedback = `Matched skills: ${found.length}. Strong sections: ${sections.length}. ${missing.length ? `Consider adding: ${missing.join(', ')}.` : 'Core resume sections are present.'}`;
-  const resume = await db.resume.create({ data: { userId, fileName, extracted: text.slice(0, 20000), score, feedback } });
-  return NextResponse.json({ ...resume, skills: found });
-}
+export const runtime = 'nodejs';
+const skills=['javascript','typescript','react','next.js','node.js','python','java','sql','postgresql','git','docker','aws','html','css','api','data structures','algorithms'];
+function analyze(text:string){const lower=text.toLowerCase();const found=skills.filter(skill=>lower.includes(skill));const sections=['experience','education','project','skills','summary','contact'].filter(s=>lower.includes(s));const score=Math.min(100,Math.round(found.length/skills.length*55+sections.length/6*35+(text.length>900?10:0)));const missing=['summary','education','projects','skills','experience'].filter(s=>!lower.includes(s));return{score,found,feedback:`Matched skills: ${found.length}. Strong sections: ${sections.length}. ${missing.length?`Consider adding: ${missing.join(', ')}.`:'Core resume sections are present.'}`};}
+export async function POST(req:Request){const userId=await getSessionUserId();if(!userId)return NextResponse.json({error:'Unauthorized'},{status:401});try{const form=await req.formData();const file=form.get('file');const pasted=String(form.get('text')||'');let fileName='Pasted resume',text=pasted;if(file instanceof File){fileName=file.name;const buffer=Buffer.from(await file.arrayBuffer());if(file.name.toLowerCase().endsWith('.pdf'))text=(await pdfParse(buffer)).text;else if(file.name.toLowerCase().endsWith('.docx'))text=(await mammoth.extractRawText({buffer})).value;else text=buffer.toString('utf8');}if(text.trim().length<40)return NextResponse.json({error:'Could not extract enough text. Upload a text-based PDF/DOCX or paste your resume text.'},{status:400});const result=analyze(text);const resume=await db.resume.create({data:{userId,fileName,extracted:text.slice(0,20000),score:result.score,feedback:result.feedback}});return NextResponse.json({...resume,skills:result.found});}catch{return NextResponse.json({error:'Resume analysis failed. Try a standard text-based PDF or DOCX.'},{status:500});}}
