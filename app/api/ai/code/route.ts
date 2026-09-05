@@ -2,14 +2,49 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getSessionUserId } from '@/lib/auth';
 
+function builtInSolution(language: string, module: string, task?: string) {
+  const l = language.toLowerCase();
+  const key = (task || module).toLowerCase();
+  if (key.includes('palindrome') || key.includes('string')) {
+    if (l === 'python') return `text = input().strip()\nprint('YES' if text.lower() == text.lower()[::-1] else 'NO')`;
+    if (l === 'javascript') return `const fs = require('fs');\nconst text = fs.readFileSync(0, 'utf8').trim();\nconst clean = text.toLowerCase();\nconsole.log(clean === [...clean].reverse().join('') ? 'YES' : 'NO');`;
+    if (l === 'java') return `import java.util.*;\nclass Main { public static void main(String[] args) { Scanner sc=new Scanner(System.in); String s=sc.nextLine().trim().toLowerCase(); String r=new StringBuilder(s).reverse().toString(); System.out.println(s.equals(r) ? "YES" : "NO"); } }`;
+    if (l === 'c++') return `#include <bits/stdc++.h>\nusing namespace std;\nint main(){ string s; getline(cin,s); string r=s; reverse(r.begin(),r.end()); cout << (s==r ? "YES" : "NO"); }`;
+  }
+  if (key.includes('array') || key.includes('largest')) {
+    if (l === 'python') return `n = int(input())\na = list(map(int, input().split()))\nprint(max(a[:n]))`;
+    if (l === 'javascript') return `const fs=require('fs'); const a=fs.readFileSync(0,'utf8').trim().split(/\\s+/).map(Number); const n=a[0]; console.log(Math.max(...a.slice(1,n+1)));`;
+    if (l === 'java') return `import java.util.*;\nclass Main { public static void main(String[] args){ Scanner sc=new Scanner(System.in); int n=sc.nextInt(), ans=Integer.MIN_VALUE; for(int i=0;i<n;i++) ans=Math.max(ans,sc.nextInt()); System.out.println(ans); } }`;
+    if (l === 'c++') return `#include <bits/stdc++.h>\nusing namespace std;\nint main(){ int n; cin>>n; int x,ans=INT_MIN; while(n--){cin>>x; ans=max(ans,x);} cout<<ans; }`;
+  }
+  if (l === 'python') return `# Example starter solution for ${module}\n# Read the input, process it according to the problem, and print the result.\nprint('Implement the ${module} solution here')`;
+  if (l === 'javascript') return `// Example starter solution for ${module}\nconsole.log('Implement the ${module} solution here');`;
+  if (l === 'java') return `class Main { public static void main(String[] args) { System.out.println("Implement the ${module} solution here"); } }`;
+  if (l === 'c++') return `#include <bits/stdc++.h>\nusing namespace std;\nint main(){ cout << "Implement the ${module} solution here"; }`;
+  return `// Implement the ${module} solution here`;
+}
+
 export async function POST(req: Request) {
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { course, module, language, code, task, solutionMode } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }); }
+  const { course, module, language, code, task, solutionMode } = body;
   if (typeof module !== 'string' || typeof language !== 'string') return NextResponse.json({ error: 'Module and language are required.' }, { status: 400 });
   if (!solutionMode && (typeof code !== 'string' || code.trim().length < 5)) return NextResponse.json({ error: 'Write some code first.' }, { status: 400 });
-  if (!process.env.OPENAI_API_KEY) return NextResponse.json({ correct: false, score: 0, output: 'AI is not configured.', feedback: 'Configure OPENAI_API_KEY to enable AI explanations, reference code and code checking.' }, { status: 503 });
+
+  const fallbackCode = builtInSolution(language, module, task);
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json({
+      correct: Boolean(solutionMode),
+      score: solutionMode ? 100 : 0,
+      output: solutionMode ? 'Built-in reference solution loaded.' : 'AI service is not configured, so automatic judging is unavailable.',
+      feedback: solutionMode ? `Use this reference implementation to study ${module}. Test it with normal and edge-case inputs. This code was not executed here.` : 'Your code was received, but an AI key is required for automatic code checking. You can still use the built-in reference solution.',
+      improvedCode: fallbackCode,
+      source: 'built-in-fallback'
+    });
+  }
 
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -30,7 +65,15 @@ export async function POST(req: Request) {
     });
     const d = JSON.parse(completion.choices[0]?.message?.content || '{}');
     return NextResponse.json({ correct: Boolean(d.correct), score: Math.max(0, Math.min(100, Number(d.score) || 0)), output: String(d.output || ''), feedback: String(d.feedback || ''), improvedCode: String(d.improvedCode || '') });
-  } catch {
-    return NextResponse.json({ error: 'AI coding assistant failed. Try again.' }, { status: 503 });
+  } catch (error) {
+    console.error('coding assistant AI error:', error);
+    return NextResponse.json({
+      correct: Boolean(solutionMode),
+      score: solutionMode ? 100 : 0,
+      output: solutionMode ? 'AI temporarily unavailable; showing a built-in reference.' : 'AI temporarily unavailable; your code was not automatically judged.',
+      feedback: solutionMode ? `Reference solution for ${module}. This code was not executed here.` : 'Try again in a moment. You can also click Explain & Show Code to use the built-in reference fallback if the AI service is unavailable.',
+      improvedCode: fallbackCode,
+      source: 'error-fallback'
+    });
   }
 }
