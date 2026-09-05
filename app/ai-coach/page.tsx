@@ -1,0 +1,19 @@
+'use client';
+import { useEffect, useState } from 'react';
+
+type Plan={source:string;greeting:string;summary:string;priorities:{priority:number;area:string;action:string}[];today:string[];reminder:string;scores?:{readiness:number;learning:number;practice:number;interview:number;resume:number}};
+
+export default function AICoach(){
+  const [plan,setPlan]=useState<Plan|null>(null); const [loading,setLoading]=useState(true); const [message,setMessage]=useState(''); const [answer,setAnswer]=useState(''); const [busy,setBusy]=useState(false);
+  useEffect(()=>{fetch('/api/ai/coach').then(r=>r.ok?r.json():null).then(setPlan).finally(()=>setLoading(false))},[]);
+  async function ask(e:React.FormEvent){e.preventDefault();if(!message.trim())return;setBusy(true);setAnswer('');try{const r=await fetch('/api/ai/coach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});const d=await r.json();setAnswer(d.answer||d.error||'No response');}finally{setBusy(false)}}
+  if(loading)return <div className="empty">AI Manager is reviewing your progress…</div>;
+  if(!plan)return <div className="container card"><h2>AI Manager unavailable</h2><p className="muted">Please sign in and try again.</p></div>;
+  return <div className="dashboard"><aside className="sidebar"><div className="side-title">INTERVIEW</div>{[['Overview','/dashboard'],['AI Manager','/ai-coach'],['Learning','/learn'],['Practice','/practice'],['Mock Interview','/mock-interview'],['Resume Analyzer','/resume'],['Placement Readiness','/placement']].map(([label,url])=><a key={url} className="side-link active" href={url}>{label}</a>)}</aside><main className="main">
+    <div className="topline"><div><div className="eyebrow">AI preparation manager</div><h1 className="title">Your personal AI coach</h1><p className="muted">{plan.greeting}</p></div><a className="btn secondary" href="/dashboard">Dashboard</a></div>
+    {plan.scores&&<div className="grid four">{[['Readiness',plan.scores.readiness],['Learning',plan.scores.learning],['Practice',plan.scores.practice],['Interview',plan.scores.interview]].map(([label,score])=><div className="card stat" key={label as string}><span className="muted">{label}</span><strong>{score}%</strong><div className="progress"><span style={{width:`${score}%`}}/></div></div>)}</div>}
+    <div className="card" style={{marginTop:18}}><span className="pill">AI MANAGER</span><h2>{plan.summary}</h2><p className="muted">{plan.reminder}</p></div>
+    <div className="grid" style={{marginTop:18}}><div className="card"><h2>Top priorities</h2>{plan.priorities.map(p=><div className="list-row" key={p.priority}><div><b>{p.priority}. {p.area}</b><p className="muted">{p.action}</p></div></div>)}</div><div className="card"><h2>Today's plan</h2>{plan.today.map((item,i)=><div className="list-row" key={i}><span><b>{i+1}</b> &nbsp;{item}</span></div>)}</div></div>
+    <div className="card" style={{marginTop:18}}><h2>Ask your AI Manager</h2><p className="muted">Ask what to study, how to improve a weak score, or how to prepare for your target role.</p><form onSubmit={ask}><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Example: I have 7 days before an interview. What should I do?" maxLength={2000}/><button className="btn" disabled={busy}>{busy?'Thinking…':'Ask AI Manager'}</button></form>{answer&&<div className="notice"><b>AI Manager</b><p>{answer}</p></div>}</div>
+  </main></div>;
+}
